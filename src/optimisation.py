@@ -86,8 +86,9 @@ def optimize_weights(returns: pd.DataFrame, objective="min_variance",
     if not result.success:
         raise RuntimeError(f"L'optimisation n'a pas convergé : {result.message}")
     w = np.clip(result.x, 0, None)
-    w = w / w.sum()                                          # nettoyage des erreurs d'arrondi
-    return {c: float(round(x, 4)) for c, x in zip(returns.columns, w)}
+    w = np.round(w / w.sum(), 4)                             # nettoyage des erreurs d'arrondi
+    w[np.argmax(w)] += round(1 - w.sum(), 4)                 # l'arrondi ne doit pas casser "somme = 1"
+    return {c: float(x) for c, x in zip(returns.columns, w)}
 
 
 def efficient_frontier(returns: pd.DataFrame, n_points=30, max_weight=MAX_WEIGHT) -> pd.DataFrame:
@@ -118,7 +119,8 @@ def efficient_frontier(returns: pd.DataFrame, n_points=30, max_weight=MAX_WEIGHT
 # --------------------------------------------------------------------------
 def split_returns(returns: pd.DataFrame, split_date=SPLIT_DATE):
     """Sépare les rendements en période d'entraînement et période de test."""
-    return returns.loc[:split_date].iloc[:-1], returns.loc[split_date:]
+    date = pd.Timestamp(split_date)
+    return returns.loc[returns.index < date], returns.loc[returns.index >= date]
 
 
 def train_test_comparison(returns: pd.DataFrame, split_date=SPLIT_DATE):
